@@ -5,9 +5,9 @@ import lombok.Data;
 @Data
 public class PredictionRequest {
     private double cgpa;
-    private int dsa_rating;
-    private int projects;
-    private int internship;
-    private int attendance;
-    private int aptitude_score;
+    private int dsaRating;
+    private int projectsCount;
+    private boolean internship;
+    private double attendance;
+    private double aptitudeScore;
 }
