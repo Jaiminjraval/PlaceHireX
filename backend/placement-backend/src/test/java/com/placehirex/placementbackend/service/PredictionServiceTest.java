@@ -37,13 +37,28 @@ class PredictionServiceTest {
     void shouldReturnPredictionResponseOnSuccess() {
         mockWebServer.enqueue(new MockResponse()
                 .setResponseCode(200)
-                .setBody("{\"probability\":0.91,\"label\":\"Likely Placed\"}")
+                .setBody("{\"probability\":0.91,\"label\":\"Likely Placed\",\"explanations\":[\"Good profile\"]}")
                 .addHeader("Content-Type", "application/json"));
 
         PredictionResponse response = predictionService.getPrediction(sampleRequest());
 
         assertEquals(0.91, response.getProbability(), 0.0001);
         assertEquals("Likely Placed", response.getLabel());
+        assertEquals(1, response.getExplanations().size());
+        assertEquals("Good profile", response.getExplanations().get(0));
+        assertEquals(0, response.getRecommendations().size());
+    }
+
+    @Test
+    void shouldDefaultExplanationsToEmptyWhenMissingInResponse() {
+        mockWebServer.enqueue(new MockResponse()
+                .setResponseCode(200)
+                .setBody("{\"probability\":0.81,\"label\":\"Likely Placed\"}")
+                .addHeader("Content-Type", "application/json"));
+
+        PredictionResponse response = predictionService.getPrediction(sampleRequest());
+        assertEquals(0, response.getExplanations().size());
+        assertEquals(0, response.getRecommendations().size());
     }
 
     @Test
