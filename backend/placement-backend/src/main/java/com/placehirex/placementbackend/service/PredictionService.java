@@ -24,29 +24,43 @@ public class PredictionService {
     private final WebClient webClient;
     private final StudentProfileRepository studentProfileRepository;
     private final PredictionHistoryRepository predictionHistoryRepository;
+    private final com.placehirex.placementbackend.repository.ModelVersionRepository modelVersionRepository;
 
     @Autowired
     public PredictionService(
             WebClient.Builder webClientBuilder,
             @Value("${ml.api.base-url:http://localhost:8000}") String mlApiBaseUrl,
             StudentProfileRepository studentProfileRepository,
-            PredictionHistoryRepository predictionHistoryRepository
-    ) {
+            PredictionHistoryRepository predictionHistoryRepository,
+            com.placehirex.placementbackend.repository.ModelVersionRepository modelVersionRepository) {
         this.webClient = webClientBuilder.baseUrl(mlApiBaseUrl).build();
         this.studentProfileRepository = studentProfileRepository;
         this.predictionHistoryRepository = predictionHistoryRepository;
+        this.modelVersionRepository = modelVersionRepository;
     }
 
     PredictionService(WebClient.Builder webClientBuilder, String mlApiBaseUrl) {
         this.webClient = webClientBuilder.baseUrl(mlApiBaseUrl).build();
         this.studentProfileRepository = null;
         this.predictionHistoryRepository = null;
+        this.modelVersionRepository = null;
     }
 
     public PredictionResponse getPrediction(PredictionRequest request) {
         try {
+            String activeModelName = "default";
+            if (modelVersionRepository != null) {
+                activeModelName = modelVersionRepository.findByIsActiveTrue()
+                        .map(com.placehirex.placementbackend.model.ModelVersion::getModelName)
+                        .orElse("default");
+            }
+
+            // Final variable for lambda capture
+            final String finalModelName = activeModelName;
+
             PredictionResponse response = webClient.post()
                     .uri("/predict")
+                    .header("X-Model-Name", finalModelName)
                     .bodyValue(request)
                     .retrieve()
                     .onStatus(
@@ -55,9 +69,7 @@ public class PredictionService {
                                     .defaultIfEmpty("No error details")
                                     .map(body -> new PredictionServiceException(
                                             "Prediction API returned error: " + body,
-                                            HttpStatus.BAD_GATEWAY
-                                    ))
-                    )
+                                            HttpStatus.BAD_GATEWAY)))
                     .bodyToMono(PredictionResponse.class)
                     .timeout(Duration.ofSeconds(5))
                     .block();
@@ -65,8 +77,7 @@ public class PredictionService {
             if (response == null) {
                 throw new PredictionServiceException(
                         "Prediction API returned an empty response",
-                        HttpStatus.BAD_GATEWAY
-                );
+                        HttpStatus.BAD_GATEWAY);
             }
 
             return response;
@@ -76,27 +87,49 @@ public class PredictionService {
             throw new PredictionServiceException(
                     "Prediction API is unavailable. Please try again later.",
                     HttpStatus.SERVICE_UNAVAILABLE,
-                    ex
-            );
+                    ex);
         } catch (RuntimeException ex) {
             if (ex.getCause() instanceof java.util.concurrent.TimeoutException) {
                 throw new PredictionServiceException(
                         "Prediction API is unavailable. Please try again later.",
                         HttpStatus.SERVICE_UNAVAILABLE,
-                        ex
-                );
+                        ex);
             }
             throw new PredictionServiceException(
                     "Failed to process prediction response",
                     HttpStatus.BAD_GATEWAY,
-                    ex
-            );
+                    ex);
         } catch (Exception ex) {
             throw new PredictionServiceException(
                     "Failed to process prediction response",
                     HttpStatus.BAD_GATEWAY,
-                    ex
-            );
+                    ex);
+        }
+    }
+
+    public String retrainModel(org.springframework.core.io.Resource fileResource) {
+        try {
+            return webClient.post()
+                    .uri("/retrain")
+                    .contentType(org.springframework.http.MediaType.MULTIPART_FORM_DATA)
+                    .body(org.springframework.web.reactive.function.BodyInserters.fromMultipartData("file",
+                            fileResource))
+                    .retrieve()
+                    .onStatus(
+                            status -> status.is4xxClientError() || status.is5xxServerError(),
+                            clientResponse -> clientResponse.bodyToMono(String.class)
+                                    .defaultIfEmpty("No error details")
+                                    .map(body -> new PredictionServiceException(
+                                            "Retrain API returned error: " + body,
+                                            HttpStatus.BAD_GATEWAY)))
+                    .bodyToMono(String.class)
+                    .timeout(Duration.ofSeconds(30)) // Longer timeout for training/upload
+                    .block();
+        } catch (Exception ex) {
+            throw new PredictionServiceException(
+                    "Failed to trigger model retraining: " + ex.getMessage(),
+                    HttpStatus.BAD_GATEWAY,
+                    ex);
         }
     }
 
@@ -129,8 +162,7 @@ public class PredictionService {
                 savedProfile.getReadinessScore(),
                 savedProfile.getReadinessLabel(),
                 buildExplanations(savedProfile),
-                buildRecommendations(savedProfile)
-        );
+                buildRecommendations(savedProfile));
     }
 
     private List<String> buildExplanations(StudentProfile profile) {

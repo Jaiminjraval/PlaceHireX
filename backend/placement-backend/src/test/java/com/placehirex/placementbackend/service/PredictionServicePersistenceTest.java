@@ -28,6 +28,8 @@ class PredictionServicePersistenceTest {
     private StudentProfileRepository studentProfileRepository;
     @Mock
     private PredictionHistoryRepository predictionHistoryRepository;
+    @Mock
+    private com.placehirex.placementbackend.repository.ModelVersionRepository modelVersionRepository;
 
     @Test
     void predictAndPersistShouldUpdateProfileAndSaveHistory() {
@@ -35,8 +37,8 @@ class PredictionServicePersistenceTest {
                 WebClient.builder(),
                 "http://localhost:8000",
                 studentProfileRepository,
-                predictionHistoryRepository
-        );
+                predictionHistoryRepository,
+                modelVersionRepository);
         PredictionService serviceSpy = org.mockito.Mockito.spy(service);
 
         AppUser appUser = new AppUser();
@@ -57,8 +59,10 @@ class PredictionServicePersistenceTest {
         profile.setAptitudeScore(45);
 
         doReturn(new PredictionResponse(0.72, "Ready")).when(serviceSpy).getPrediction(any());
-        when(studentProfileRepository.save(any(StudentProfile.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(predictionHistoryRepository.save(any(PredictionHistory.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(studentProfileRepository.save(any(StudentProfile.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(predictionHistoryRepository.save(any(PredictionHistory.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
         PredictionResponse response = serviceSpy.predictAndPersist(profile);
 

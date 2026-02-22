@@ -6,26 +6,48 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import com.placehirex.placementbackend.dto.PredictionRequest;
 import com.placehirex.placementbackend.dto.PredictionResponse;
 import com.placehirex.placementbackend.exception.PredictionServiceException;
+import com.placehirex.placementbackend.repository.ModelVersionRepository;
+import com.placehirex.placementbackend.repository.PredictionHistoryRepository;
+import com.placehirex.placementbackend.repository.StudentProfileRepository;
+import java.io.IOException;
+import java.util.Optional;
 import okhttp3.mockwebserver.MockResponse;
+import okhttp3.mockwebserver.RecordedRequest;
 import okhttp3.mockwebserver.MockWebServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.reactive.function.client.WebClient;
+
+import java.io.IOException;
 
 class PredictionServiceTest {
     private MockWebServer mockWebServer;
     private PredictionService predictionService;
 
+    @Mock
+    private StudentProfileRepository studentProfileRepository;
+
+    @Mock
+    private PredictionHistoryRepository predictionHistoryRepository;
+
+    @Mock
+    private ModelVersionRepository modelVersionRepository;
+
     @BeforeEach
-    void setUp() throws Exception {
+    void setUp() throws IOException {
+        MockitoAnnotations.openMocks(this);
         mockWebServer = new MockWebServer();
         mockWebServer.start();
         predictionService = new PredictionService(
                 WebClient.builder(),
-                mockWebServer.url("/").toString()
-        );
+                mockWebServer.url("/").toString(),
+                studentProfileRepository,
+                predictionHistoryRepository,
+                modelVersionRepository);
     }
 
     @AfterEach
@@ -50,6 +72,26 @@ class PredictionServiceTest {
     }
 
     @Test
+    void shouldSendActiveModelHeader() throws InterruptedException {
+        // Given
+        com.placehirex.placementbackend.model.ModelVersion activeModel = new com.placehirex.placementbackend.model.ModelVersion();
+        activeModel.setModelName("v2-advanced");
+        org.mockito.Mockito.when(modelVersionRepository.findByIsActiveTrue()).thenReturn(Optional.of(activeModel));
+
+        mockWebServer.enqueue(new MockResponse()
+                .setResponseCode(200)
+                .setBody("{\"probability\":0.91,\"label\":\"Likely Placed\"}")
+                .addHeader("Content-Type", "application/json"));
+
+        // When
+        predictionService.getPrediction(sampleRequest());
+
+        // Then
+        RecordedRequest recordedRequest = mockWebServer.takeRequest();
+        assertEquals("v2-advanced", recordedRequest.getHeader("X-Model-Name"));
+    }
+
+    @Test
     void shouldDefaultExplanationsToEmptyWhenMissingInResponse() {
         mockWebServer.enqueue(new MockResponse()
                 .setResponseCode(200)
@@ -70,8 +112,7 @@ class PredictionServiceTest {
 
         PredictionServiceException ex = assertThrows(
                 PredictionServiceException.class,
-                () -> predictionService.getPrediction(sampleRequest())
-        );
+                () -> predictionService.getPrediction(sampleRequest()));
 
         assertEquals(HttpStatus.BAD_GATEWAY, ex.getStatus());
     }
@@ -82,8 +123,7 @@ class PredictionServiceTest {
 
         PredictionServiceException ex = assertThrows(
                 PredictionServiceException.class,
-                () -> predictionService.getPrediction(sampleRequest())
-        );
+                () -> predictionService.getPrediction(sampleRequest()));
 
         assertEquals(HttpStatus.SERVICE_UNAVAILABLE, ex.getStatus());
     }
