@@ -13,4 +13,14 @@ public interface StudentProfileRepository extends JpaRepository<StudentProfile, 
 
     @Query("SELECT COALESCE(AVG(sp.readinessScore), 0) FROM StudentProfile sp")
     Double findAverageReadinessScore();
+
+    @Query("SELECT COALESCE(AVG(sp.cgpa), 0) FROM StudentProfile sp")
+    Double findAverageCGPA();
+
+    long countByInternshipAndReadinessLabel(boolean internship, String readinessLabel);
+    
+    long countByReadinessScoreGreaterThanEqualAndReadinessScoreLessThan(double min, double max);
+    
+    long countByReadinessScoreGreaterThanEqualAndReadinessScoreLessThanEqual(double min, double max);
+
 }

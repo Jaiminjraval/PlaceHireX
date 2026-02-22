@@ -12,4 +12,9 @@ public class AdminAnalyticsResponse {
     private long readyStudentsCount;
     private long notReadyStudentsCount;
     private double averageReadinessScore;
+    private double averageCGPA;
+    private long internshipReadyCount;
+    private long nonInternshipReadyCount;
+    private java.util.Map<String, Long> readinessDistribution;
+
 }
