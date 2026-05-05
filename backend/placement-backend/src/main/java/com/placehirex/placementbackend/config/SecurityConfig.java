@@ -35,8 +35,7 @@ public class SecurityConfig {
             JwtAuthenticationFilter jwtAuthenticationFilter,
             UserDetailsService userDetailsService,
             RestAuthenticationEntryPoint restAuthenticationEntryPoint,
-            RestAccessDeniedHandler restAccessDeniedHandler
-    ) {
+            RestAccessDeniedHandler restAccessDeniedHandler) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.userDetailsService = userDetailsService;
         this.restAuthenticationEntryPoint = restAuthenticationEntryPoint;
@@ -51,14 +50,12 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(restAuthenticationEntryPoint)
-                        .accessDeniedHandler(restAccessDeniedHandler)
-                )
+                        .accessDeniedHandler(restAccessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
                         .requestMatchers("/api/hello").hasAnyRole("STUDENT", "ADMIN")
                         .requestMatchers("/api/students/**").hasAnyRole("STUDENT", "ADMIN")
-                        .anyRequest().authenticated()
-                )
+                        .anyRequest().authenticated())
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -87,7 +84,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(List.of("http://localhost:5173"));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(false);
 

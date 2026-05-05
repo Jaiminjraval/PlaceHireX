@@ -1,7 +1,9 @@
 package com.placehirex.placementbackend.controller;
 
 import com.placehirex.placementbackend.dto.AdminAnalyticsResponse;
+import com.placehirex.placementbackend.model.StudentProfile;
 import com.placehirex.placementbackend.repository.StudentProfileRepository;
+import java.util.List;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,6 +21,11 @@ public class AdminAnalyticsController {
         this.studentProfileRepository = studentProfileRepository;
     }
 
+    @GetMapping("/students")
+    public List<StudentProfile> getAllStudents() {
+        return studentProfileRepository.findAll();
+    }
+
     @GetMapping("/analytics")
     public AdminAnalyticsResponse getAnalytics() {
         long totalStudents = studentProfileRepository.count();
@@ -31,11 +38,16 @@ public class AdminAnalyticsController {
         long nonInternshipReadyCount = studentProfileRepository.countByInternshipAndReadinessLabel(false, READY_LABEL);
 
         java.util.Map<String, Long> readinessDistribution = new java.util.LinkedHashMap<>();
-        readinessDistribution.put("0-20", studentProfileRepository.countByReadinessScoreGreaterThanEqualAndReadinessScoreLessThan(0, 20));
-        readinessDistribution.put("20-40", studentProfileRepository.countByReadinessScoreGreaterThanEqualAndReadinessScoreLessThan(20, 40));
-        readinessDistribution.put("40-60", studentProfileRepository.countByReadinessScoreGreaterThanEqualAndReadinessScoreLessThan(40, 60));
-        readinessDistribution.put("60-80", studentProfileRepository.countByReadinessScoreGreaterThanEqualAndReadinessScoreLessThan(60, 80));
-        readinessDistribution.put("80-100", studentProfileRepository.countByReadinessScoreGreaterThanEqualAndReadinessScoreLessThanEqual(80, 100));
+        readinessDistribution.put("0-20",
+                studentProfileRepository.countByReadinessScoreGreaterThanEqualAndReadinessScoreLessThan(0, 20));
+        readinessDistribution.put("20-40",
+                studentProfileRepository.countByReadinessScoreGreaterThanEqualAndReadinessScoreLessThan(20, 40));
+        readinessDistribution.put("40-60",
+                studentProfileRepository.countByReadinessScoreGreaterThanEqualAndReadinessScoreLessThan(40, 60));
+        readinessDistribution.put("60-80",
+                studentProfileRepository.countByReadinessScoreGreaterThanEqualAndReadinessScoreLessThan(60, 80));
+        readinessDistribution.put("80-100",
+                studentProfileRepository.countByReadinessScoreGreaterThanEqualAndReadinessScoreLessThanEqual(80, 100));
 
         return new AdminAnalyticsResponse(
                 totalStudents,
@@ -45,7 +57,6 @@ public class AdminAnalyticsController {
                 averageCGPA == null ? 0.0 : averageCGPA,
                 internshipReadyCount,
                 nonInternshipReadyCount,
-                readinessDistribution
-        );
+                readinessDistribution);
     }
 }
